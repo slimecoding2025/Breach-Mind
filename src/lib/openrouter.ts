@@ -32,8 +32,8 @@ JSON Schema:
       "title": "Short title",
       "mitreId": "T1190",
       "mitreTactic": "Initial Access",
-      "description": "Short explanation (1-2 brief sentences).",
-      "command": "Short instruction/command",
+      "description": "Short explanation (1 sentence).",
+      "command": "Short command",
       "remediation": "Short mitigation tip.",
       "severity": "High",
       "tools": ["nmap"],
@@ -44,7 +44,7 @@ JSON Schema:
 
 Strict Rules:
 - Generate EXACTLY 1 node per phase (4 nodes total in this order: reconnaissance, initial_access, privilege_escalation, exfiltration_persistence).
-- Keep all string fields concise to prevent JSON truncation.
+- Keep descriptions, commands, and remediations short to prevent JSON truncation.
 - "phase" must be one of: "reconnaissance", "initial_access", "privilege_escalation", "exfiltration_persistence".
 - "severity" must be one of: "Critical", "High", "Medium", "Low".
 - Ensure valid double-quoted JSON output.`;
@@ -54,45 +54,62 @@ function buildUserPrompt(target: string): string {
   return `Target stack: "${target}". Output pure valid JSON now.`;
 }
 
-/** Strip markdown code fences and attempt to auto-repair truncated JSON string. */
-function extractJsonBlock(raw: string): string {
+/** Robust JSON cleaner and auto-repairer for cut-off LLM responses. */
+function repairAndParseJson(raw: string): unknown {
   let text = raw.trim();
 
-  // Remove ```json ... ``` or ``` ... ``` fences
+  // 1. Remove markdown fences
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenceMatch) {
     text = fenceMatch[1].trim();
   }
 
-  // Isolate starting from first '{'
+  // 2. Isolate JSON starting from first '{'
   const firstBrace = text.indexOf("{");
   if (firstBrace !== -1) {
     text = text.slice(firstBrace);
   }
 
-  // Handle missing trailing brackets if output was cut off
-  const lastBrace = text.lastIndexOf("}");
-  if (lastBrace !== -1 && lastBrace > firstBrace) {
-    text = text.slice(0, lastBrace + 1);
-  } else {
-    // Attempt basic fix for truncated arrays/objects
-    const openBrackets = (text.match(/\[/g) || []).length - (text.match(/\]/g) || []).length;
-    const openBraces = (text.match(/\{/g) || []).length - (text.match(/\}/g) || []).length;
-
-    for (let i = 0; i < openBrackets; i++) text += "]";
-    for (let i = 0; i < openBraces; i++) text += "}";
-  }
-
-  return text;
-}
-
-/** Attempt to repair common JSON syntax issues from LLMs. */
-function sanitizeJsonText(text: string): string {
-  return text
+  // 3. Sanitize common syntax issues
+  text = text
     .replace(/[\u201C\u201D]/g, '"')
     .replace(/[\u2018\u2019]/g, "'")
-    .replace(/,\s*([\]}])/g, "$1")
+    .replace(/,\s*([\]}])/g, "$1") // remove trailing commas
     .replace(/\u0000/g, "");
+
+  // First parsing attempt
+  try {
+    return JSON.parse(text);
+  } catch {
+    // If simple parse fails, try auto-repairing truncated structure
+  }
+
+  // 4. Try trimming to last valid object closing bracket '}'
+  const lastBrace = text.lastIndexOf("}");
+  if (lastBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = text.slice(0, lastBrace + 1);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Continue to bracket completion strategy
+    }
+  }
+
+  // 5. If JSON was cut off inside nodes array, attempt auto-closing
+  let fixed = text;
+  // If last character inside array is cut off, drop incomplete step
+  const lastNodeStart = fixed.lastIndexOf("{");
+  if (lastNodeStart > 0 && fixed.lastIndexOf("}") < lastNodeStart) {
+    fixed = fixed.substring(0, lastNodeStart).replace(/,\s*$/, "");
+  }
+
+  const openBrackets = (fixed.match(/\[/g) || []).length - (fixed.match(/\]/g) || []).length;
+  const openBraces = (fixed.match(/\{/g) || []).length - (fixed.match(/\}/g) || []).length;
+
+  for (let i = 0; i < openBrackets; i++) fixed += "]";
+  for (let i = 0; i < openBraces; i++) fixed += "}";
+
+  return JSON.parse(fixed);
 }
 
 function coercePhase(value: unknown): AttackPhase {
@@ -201,8 +218,9 @@ export async function generateAttackScenario(
       },
       body: JSON.stringify({
         model: OPENROUTER_MODEL,
-        temperature: 0.2,
-        max_tokens: 2000,
+        temperature: 0.1,
+        max_tokens: 1500,
+        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: buildSystemPrompt() },
           { role: "user", content: buildUserPrompt(target) },
@@ -232,11 +250,9 @@ export async function generateAttackScenario(
       throw new OpenRouterError("OpenRouter response contained no content.", "EMPTY_RESPONSE");
     }
 
-    const jsonBlock = sanitizeJsonText(extractJsonBlock(content));
-
     let parsed: unknown;
     try {
-      parsed = JSON.parse(jsonBlock);
+      parsed = repairAndParseJson(content);
     } catch (parseErr) {
       throw new OpenRouterError(
         `Failed to parse AI JSON output: ${(parseErr as Error).message}`,
