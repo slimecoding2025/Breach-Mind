@@ -1,0 +1,111 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+:root {
+  --font-jetbrains-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-inter: "Inter", system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #020617;
+  color: #e2e8f5;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 245, 255, 0.35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(34, 245, 255, 0.25);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 245, 255, 0.45);
+}
+
+.text-glow-cyan {
+  text-shadow: 0 0 8px rgba(34, 245, 255, 0.65), 0 0 22px rgba(34, 245, 255, 0.3);
+}
+
+.text-glow-violet {
+  text-shadow: 0 0 8px rgba(168, 85, 247, 0.65), 0 0 22px rgba(168, 85, 247, 0.3);
+}
+
+.cyber-grid-bg {
+  background-color: #020617;
+  background-image:
+    linear-gradient(rgba(34, 245, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 245, 255, 0.055) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+.glass-panel {
+  background: linear-gradient(180deg, rgba(12, 18, 32, 0.92), rgba(4, 8, 18, 0.94));
+  border: 1px solid rgba(34, 245, 255, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+/* React Flow overrides for cyber theme */
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__edge-path {
+  stroke: rgba(34, 245, 255, 0.55);
+  stroke-width: 1.6;
+}
+
+.react-flow__edge.animated path {
+  stroke-dasharray: 6 4;
+  animation: flow-dash 0.9s linear infinite;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #a855f7;
+}
+
+.react-flow__controls {
+  background: rgba(9, 13, 22, 0.9);
+  border: 1px solid rgba(34, 245, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: transparent;
+  border-bottom: 1px solid rgba(34, 245, 255, 0.12);
+  color: #22f5ff;
+  fill: #22f5ff;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(34, 245, 255, 0.12);
+}
+
+.react-flow__minimap {
+  background: rgba(9, 13, 22, 0.85) !important;
+  border: 1px solid rgba(34, 245, 255, 0.18);
+  border-radius: 10px;
+}
+
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
