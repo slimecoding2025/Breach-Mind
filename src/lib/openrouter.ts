@@ -97,7 +97,6 @@ function repairAndParseJson(raw: string): unknown {
 
   // 5. If JSON was cut off inside nodes array, attempt auto-closing
   let fixed = text;
-  // If last character inside array is cut off, drop incomplete step
   const lastNodeStart = fixed.lastIndexOf("{");
   if (lastNodeStart > 0 && fixed.lastIndexOf("}") < lastNodeStart) {
     fixed = fixed.substring(0, lastNodeStart).replace(/,\s*$/, "");
@@ -220,7 +219,6 @@ export async function generateAttackScenario(
         model: OPENROUTER_MODEL,
         temperature: 0.1,
         max_tokens: 1500,
-        response_format: { type: "json_object" },
         messages: [
           { role: "system", content: buildSystemPrompt() },
           { role: "user", content: buildUserPrompt(target) },
